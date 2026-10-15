@@ -1,6 +1,9 @@
 import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/models/ai_provider.dart';
 import 'package:anx_reader/service/ai/ai_model_service.dart';
+import 'package:anx_reader/service/chatgpt/desktop_chatgpt.dart';
+import 'package:anx_reader/service/chatgpt/reader_provider.dart';
+import 'package:chatgpt_auth/chatgpt_auth.dart';
 import 'package:anx_reader/widgets/common/anx_button.dart';
 import 'package:flutter/material.dart';
 
@@ -40,11 +43,12 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
   List<String>? _fetchedModels;
   bool _isFetching = false;
   String? _fetchError;
+  bool get _isChatGpt => widget.provider.id == chatGptProviderId;
 
   bool get _canFetch =>
-      widget.provider.protocol == AiProtocol.openai &&
+      _isChatGpt || (widget.provider.protocol == AiProtocol.openai &&
       widget.provider.hasValidKey &&
-      widget.provider.url.isNotEmpty;
+      widget.provider.url.isNotEmpty);
 
   @override
   void initState() {
@@ -52,6 +56,11 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
     _controller = TextEditingController(
       text: widget.currentModel ?? '',
     );
+    if (_isChatGpt) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _fetchModels();
+      });
+    }
   }
 
   @override
@@ -68,11 +77,21 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
     });
 
     try {
-      final apiKey = widget.provider.currentApiKey ?? '';
-      final models = await fetchAiModels(
-        url: widget.provider.url,
-        apiKey: apiKey,
-      );
+      final List<String> models;
+      if (_isChatGpt) {
+        final controller = DesktopChatGptController.instance;
+        await controller.initialize();
+        final account = controller.active;
+        if (account == null || !account.signedIn || !account.planEnabled) {
+          throw const ChatGptException('sign_in_required',
+              'Open Settings > AI > ChatGPT account to sign in.');
+        }
+        models = (await controller.responses.models(account.clientId))
+            .map((m) => m.slug).toList();
+      } else {
+        models = await fetchAiModels(url: widget.provider.url,
+            apiKey: widget.provider.currentApiKey ?? '');
+      }
       if (mounted) {
         setState(() {
           _fetchedModels = models;
@@ -114,11 +133,12 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
                   child: TextField(
                     controller: _controller,
                     decoration: InputDecoration(
-                      labelText: l10n.aiModelEnterManually,
+                      labelText: _isChatGpt ? l10n.chatGptModel : l10n.aiModelEnterManually,
                       border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                     autofocus: !_canFetch,
+                    readOnly: _isChatGpt,
                   ),
                 ),
                 if (_canFetch) ...[
@@ -184,7 +204,8 @@ class _ModelPickerDialogState extends State<_ModelPickerDialog> {
           child: Text(l10n.commonCancel),
         ),
         TextButton(
-          onPressed: () {
+          onPressed: _isChatGpt && !(_fetchedModels?.contains(_controller.text) ?? false)
+              ? null : () {
             final text = _controller.text.trim();
             Navigator.pop(context, text.isEmpty ? null : text);
           },

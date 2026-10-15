@@ -71,3 +71,17 @@ google_service_account.json
 # FVM Version Cache
 .fvm/
 .fvmrc
+
+# Local authentication, runtime data and private verification artifacts
+/.tools/
+/verification/
+/publication/
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+*.keychain-db
+*.mobileprovision
+*.p12
+chatgpt-session.lock

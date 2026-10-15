@@ -4,6 +4,9 @@ import 'package:anx_reader/config/shared_preference_provider.dart';
 import 'package:anx_reader/models/ai_provider.dart';
 import 'package:anx_reader/providers/current_reading.dart';
 import 'package:anx_reader/service/ai/tools/ai_tool_registry.dart';
+import 'package:anx_reader/service/chatgpt/desktop_chatgpt.dart';
+import 'package:anx_reader/service/chatgpt/reader_model.dart';
+import 'package:chatgpt_auth/chatgpt_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:langchain_anthropic/langchain_anthropic.dart';
 import 'package:langchain_core/chat_models.dart';
@@ -17,6 +20,22 @@ import 'langchain_ai_config.dart';
 class LangchainAiRegistry {
   const LangchainAiRegistry(this.ref);
   final WidgetRef? ref;
+
+  LangchainPipeline resolveChatGpt({
+    required String clientId,
+    required String model,
+    required bool useAgent,
+  }) {
+    final auth = DesktopChatGptController.instance.auth;
+    return _buildPipeline(
+      LangchainAiConfig(identifier: 'chatgpt-plan', model: model, apiKey: ''),
+      ChatGptReaderModel(
+        transport: ChatGptResponsesClient(ChatGptResponses(auth), clientId: clientId),
+        model: model,
+      ),
+      useAgent: useAgent,
+    );
+  }
 
   LangchainPipeline resolve(
     LangchainAiConfig config, {

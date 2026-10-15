@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = Anx Reader
+PRODUCT_NAME = AI Reader
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.anxcye.anxReader
+PRODUCT_BUNDLE_IDENTIFIER = org.openreader.chatgpt
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2024 com.anxcye. All rights reserved.

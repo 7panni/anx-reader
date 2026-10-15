@@ -1,0 +1,37 @@
+name: ChatGPT auth core
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [chatgpt-reader]
+    paths:
+      - 'packages/chatgpt_auth/**'
+      - '.github/workflows/chatgpt-auth.yml'
+  pull_request:
+    paths:
+      - 'packages/chatgpt_auth/**'
+      - '.github/workflows/chatgpt-auth.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  auth-core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: packages/chatgpt_auth
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.9.2'
+      - run: dart pub get --enforce-lockfile
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: dart analyze
+      - run: dart test

@@ -1,6 +1,8 @@
 import 'package:anx_reader/config/shared_preference_provider.dart';
 import 'package:anx_reader/models/ai_provider.dart';
 import 'package:anx_reader/service/ai/ai_services.dart';
+import 'package:anx_reader/service/chatgpt/desktop_chatgpt.dart';
+import 'package:anx_reader/service/chatgpt/reader_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -19,9 +21,10 @@ class AiProviders extends _$AiProviders {
 
     // Convert from JSON
     try {
-      return rawProviders
+      final providers = rawProviders
           .map((json) => AiProvider.fromJson(json as Map<String, dynamic>))
           .toList();
+      return _includeChatGpt(providers);
     } catch (e) {
       // If parsing fails, reinitialize
       return _initializeDefaultProviders();
@@ -81,7 +84,14 @@ class AiProviders extends _$AiProviders {
     // Save to storage
     Prefs().saveAiProviders(providers);
 
-    return providers;
+    return _includeChatGpt(providers);
+  }
+
+  List<AiProvider> _includeChatGpt(List<AiProvider> providers) {
+    if (!DesktopChatGptController.supported) return providers;
+    final result = withChatGptProvider(providers);
+    if (result.length != providers.length) Prefs().saveAiProviders(result);
+    return result;
   }
 
   /// Get the currently selected provider
@@ -237,8 +247,8 @@ class AiProviders extends _$AiProviders {
   /// Refresh providers (reload from storage)
   void refresh() {
     final providers = Prefs().getAiProviders();
-    state = providers
+    state = _includeChatGpt(providers
         .map((json) => AiProvider.fromJson(json as Map<String, dynamic>))
-        .toList();
+        .toList());
   }
 }

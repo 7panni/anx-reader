@@ -1,5 +1,6 @@
 import 'package:anx_reader/config/shared_preference_provider.dart';
 import 'package:anx_reader/providers/ai_history.dart';
+import 'package:anx_reader/providers/ai_providers.dart';
 import 'package:anx_reader/service/ai/ai_history.dart';
 import 'package:anx_reader/service/ai/index.dart';
 import 'package:anx_reader/utils/ai_reasoning_parser.dart';
@@ -41,7 +42,8 @@ class AiChat extends _$AiChat {
     final sessionId = _ensureSessionId();
     final serviceId = Prefs().selectedAiService;
     final config = Prefs().getAiConfig(serviceId);
-    final model = (config['model'])?.trim() ?? '';
+    final model = widgetRef.read(aiProvidersProvider.notifier)
+        .getProviderById(serviceId)?.model ?? (config['model'])?.trim() ?? '';
     final historyNotifier = widgetRef.read(aiHistoryProvider.notifier);
     final initialHistoryState = widgetRef
         .read(aiHistoryProvider)
@@ -111,7 +113,8 @@ class AiChat extends _$AiChat {
         messages: List<ChatMessage>.from(state.value ?? updatedMessages),
         updatedAt: DateTime.now().millisecondsSinceEpoch,
         completed: true,
-        model: model,
+        model: widgetRef.read(aiProvidersProvider.notifier)
+            .getProviderById(serviceId)?.model ?? model,
       );
       await historyNotifier.upsert(completedEntry);
     } catch (_) {

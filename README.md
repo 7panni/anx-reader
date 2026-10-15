@@ -1,3 +1,5 @@
+> **ChatGPT Reader fork:** Adds official Sign in with ChatGPT, account-specific models, and ChatGPT plan usage in the reading assistant. See [setup, privacy and verification](README_CHATGPT.md). This is an independent development fork, not an official OpenAI or Anx Reader release.
+
 **English** | [简体中文](README_zh.md) | [Türkçe](README_tr.md) | [Русский](README_RU.md)
 
 <br>

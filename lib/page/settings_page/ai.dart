@@ -4,6 +4,8 @@ import 'package:anx_reader/enums/ai_chat_display_mode.dart';
 import 'package:anx_reader/enums/ai_panel_position.dart';
 import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/page/settings_page/ai_provider_list_page.dart';
+import 'package:anx_reader/page/settings_page/chatgpt_account_page.dart';
+import 'package:anx_reader/service/chatgpt/desktop_chatgpt.dart';
 import 'package:anx_reader/providers/ai_cache_count.dart';
 import 'package:anx_reader/providers/ai_providers.dart';
 import 'package:anx_reader/providers/user_prompts.dart';
@@ -214,6 +216,15 @@ class _AISettingsState extends ConsumerState<AISettings> {
       SettingsSection(
         title: Text(L10n.of(context).settingsAiServices),
         tiles: [
+          if (DesktopChatGptController.supported)
+            SettingsTile.navigation(
+              title: Text(l10n.chatGptTitle),
+              description: Text(l10n.chatGptSettingsDescription),
+              onPressed: (context) => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ChatGptAccountPage())),
+            ),
           SettingsTile.navigation(
             title: Text(l10n.settingsAiProviders),
             description: _buildProviderDescription(),

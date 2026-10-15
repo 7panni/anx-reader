@@ -10,6 +10,9 @@ import 'package:anx_reader/service/ai/ai_key_rotator.dart';
 import 'package:anx_reader/service/ai/langchain_ai_config.dart';
 import 'package:anx_reader/service/ai/langchain_registry.dart';
 import 'package:anx_reader/service/ai/langchain_runner.dart';
+import 'package:anx_reader/service/chatgpt/desktop_chatgpt.dart';
+import 'package:anx_reader/service/chatgpt/reader_provider.dart';
+import 'package:chatgpt_auth/chatgpt_auth.dart';
 import 'package:anx_reader/utils/ai_reasoning_parser.dart';
 import 'package:anx_reader/utils/log/common.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,6 +81,59 @@ Stream<String> _generateStream({
 }) async* {
   AnxLog.info('aiGenerateStream called identifier: $identifier');
   final sanitizedMessages = _sanitizeMessagesForPrompt(messages);
+
+  // OAuth plan usage is intentionally outside API-key fallback handlers.
+  if ((identifier ?? Prefs().selectedAiService) == chatGptProviderId) {
+    if (overrideConfig != null) {
+      throw const ChatGptException('invalid_request',
+          'ChatGPT plan access cannot use API-key configuration overrides.');
+    }
+    final controller = DesktopChatGptController.instance;
+    await controller.initialize();
+    if (!controller.initialized) {
+      throw controller.error ?? const ChatGptException('vault_unavailable',
+          'Open ChatGPT account settings and unlock secure storage.');
+    }
+    final account = controller.active;
+    if (account == null || !account.signedIn || !account.planEnabled) {
+      throw const ChatGptException('sign_in_required',
+          'Open Settings > AI > ChatGPT account and authorize ChatGPT plan usage.');
+    }
+    final providers = registry.ref != null
+        ? registry.ref!.read(aiProvidersProvider)
+        : Prefs().getAiProviders().map((p) =>
+            AiProvider.fromJson(p as Map<String, dynamic>)).toList();
+    final provider = providers.where((p) => p.id == chatGptProviderId).firstOrNull;
+    if (provider == null || !provider.enabled) {
+      throw const ChatGptException('provider_disabled', 'ChatGPT is disabled.');
+    }
+    final models = await controller.responses.models(account.clientId);
+    if (models.isEmpty) {
+      throw const ChatGptException('no_models', 'No models are available for this ChatGPT account.');
+    }
+    final model = provider.model.isEmpty ? models.first.slug : provider.model;
+    if (!models.any((m) => m.slug == model)) {
+      throw const ChatGptException('model_unavailable',
+          'Choose an available model for the active ChatGPT account.');
+    }
+    if (provider.model != model) {
+      final updated = provider.copyWith(model: model);
+      if (registry.ref != null) {
+        registry.ref!.read(aiProvidersProvider.notifier).updateProvider(updated);
+      } else {
+        Prefs().saveAiProviders([
+          for (final p in providers) if (p.id == chatGptProviderId) updated else p,
+        ]);
+      }
+    }
+    final pipeline = registry.resolveChatGpt(
+        clientId: account.clientId, model: model, useAgent: useAgent);
+    await _throttleIfNeeded();
+    yield* _executeStream(model: pipeline.model, pipeline: pipeline,
+        sanitizedMessages: sanitizedMessages, useAgent: useAgent,
+        propagateErrors: true);
+    return;
+  }
 
   LangchainAiConfig config;
 
@@ -244,6 +300,7 @@ Stream<String> _executeStream({
   required LangchainPipeline pipeline,
   required List<ChatMessage> sanitizedMessages,
   required bool useAgent,
+  bool propagateErrors = false,
 }) async* {
   Stream<String> stream;
   if (useAgent) {
@@ -283,6 +340,11 @@ Stream<String> _executeStream({
       yield buffer;
     }
   } catch (error, stack) {
+    if (propagateErrors) {
+      if (error is ChatGptException) rethrow;
+      throw const ChatGptException('chatgpt_request_failed',
+          'ChatGPT could not complete this request. Check account access and usage.');
+    }
     final mapped = _mapError(error);
     AnxLog.severe('AI error: $mapped\n$stack');
     yield mapped;

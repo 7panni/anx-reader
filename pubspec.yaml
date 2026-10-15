@@ -8,6 +8,9 @@ environment:
   sdk: '>=3.5.2 <4.0.0'
 
 dependencies:
+  chatgpt_auth:
+    path: packages/chatgpt_auth
+  flutter_secure_storage: ^9.2.4
   flutter:
     sdk: flutter
   flutter_localizations:

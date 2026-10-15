@@ -2,6 +2,8 @@ import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/models/ai_provider.dart';
 import 'package:anx_reader/page/settings_page/ai_provider_detail_page.dart';
 import 'package:anx_reader/providers/ai_providers.dart';
+import 'package:anx_reader/service/chatgpt/reader_provider.dart';
+import 'package:anx_reader/page/settings_page/chatgpt_account_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -32,7 +34,8 @@ class AiProviderListPage extends ConsumerWidget {
         itemBuilder: (context, index) {
           final provider = providers[index];
           final isSelected = provider.id == selectedId;
-          final hasValidKey = provider.hasValidKey;
+          final isChatGpt = provider.id == chatGptProviderId;
+          final hasValidKey = isChatGpt || provider.hasValidKey;
 
           return ListTile(
             leading: _buildProviderLogo(provider),
@@ -41,7 +44,7 @@ class AiProviderListPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  provider.url,
+                  isChatGpt ? l10n.chatGptUsingPlan : provider.url,
                   style: Theme.of(context).textTheme.bodySmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -89,7 +92,8 @@ class AiProviderListPage extends ConsumerWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      AiProviderDetailPage(providerId: provider.id),
+                      isChatGpt ? const ChatGptAccountPage()
+                          : AiProviderDetailPage(providerId: provider.id),
                 ),
               );
             },

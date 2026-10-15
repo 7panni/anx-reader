@@ -1,3 +1,5 @@
+> **ChatGPT 阅读助手开发分支**：新增官方账号登录、套餐模型选择和阅读助手接入。使用方法、隐私边界与构建说明见 [README_CHATGPT.md](README_CHATGPT.md)。本分支非 OpenAI 或 Anx Reader 官方发布。
+
 [English](README.md) | **简体中文** | [Türkçe](README_tr.md)
 
 <p align="center">
