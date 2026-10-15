@@ -27,9 +27,9 @@ class AuthorizationAttempt {
   AuthorizationAttempt({
     required this.redirectUri,
     this.clientId = dynamicClientId,
-  }) : state = randomOAuthValue(),
-       nonce = randomOAuthValue(),
-       verifier = randomOAuthValue(64);
+  })  : state = randomOAuthValue(),
+        nonce = randomOAuthValue(),
+        verifier = randomOAuthValue(64);
   final Uri redirectUri;
   final String clientId;
   final String state;
@@ -43,24 +43,25 @@ class AuthorizationAttempt {
     String? idTokenHint,
     String? loginHint,
     bool requestConsent = false,
-  }) => endpoint.replace(
-    queryParameters: {
-      'client_id': clientId,
-      if (clientId == dynamicClientId) 'agent_name_hint': appName,
-      'ext_agent_host_id': hostId,
-      'response_type': 'code',
-      'redirect_uri': redirectUri.toString(),
-      'scope': requestedScopes.join(' '),
-      'resource': openAiResource,
-      'state': state,
-      'nonce': nonce,
-      'code_challenge_method': 'S256',
-      'code_challenge': pkceChallenge(verifier),
-      if (idTokenHint != null) 'id_token_hint': idTokenHint,
-      if (loginHint != null) 'login_hint': loginHint,
-      if (requestConsent) 'prompt': 'consent',
-    },
-  );
+  }) =>
+      endpoint.replace(
+        queryParameters: {
+          'client_id': clientId,
+          if (clientId == dynamicClientId) 'agent_name_hint': appName,
+          'ext_agent_host_id': hostId,
+          'response_type': 'code',
+          'redirect_uri': redirectUri.toString(),
+          'scope': requestedScopes.join(' '),
+          'resource': openAiResource,
+          'state': state,
+          'nonce': nonce,
+          'code_challenge_method': 'S256',
+          'code_challenge': pkceChallenge(verifier),
+          if (idTokenHint != null) 'id_token_hint': idTokenHint,
+          if (loginHint != null) 'login_hint': loginHint,
+          if (requestConsent) 'prompt': 'consent',
+        },
+      );
 
   void validateState(Uri callback) {
     final states = callback.queryParametersAll['state'];
@@ -117,8 +118,8 @@ class LoopbackCallback {
   final _result = Completer<Uri>();
   bool _consumed = false;
   static Future<LoopbackCallback> bind() async => LoopbackCallback._(
-    await HttpServer.bind(InternetAddress.loopbackIPv4, 0, shared: false),
-  );
+        await HttpServer.bind(InternetAddress.loopbackIPv4, 0, shared: false),
+      );
   Uri get redirectUri =>
       Uri.parse('http://127.0.0.1:${_server.port}/auth/callback');
 

@@ -11,9 +11,9 @@ String event(Map<String, dynamic> json) => 'data: ${jsonEncode(json)}\n\n';
 String delta(String text) =>
     event({'type': 'response.output_text.delta', 'delta': text});
 String get completed => event({
-  'type': 'response.completed',
-  'response': {'status': 'completed'},
-});
+      'type': 'response.completed',
+      'response': {'status': 'completed'},
+    });
 
 void main() {
   late FakeOpenAi fake;
@@ -164,11 +164,13 @@ void main() {
       clientFactory: () => MockClient(
         (_) async => http.Response(
           '${delta('partial')}${event({
-            'type': 'response.failed',
-            'response': {
-              'error': {'code': 'subscription_sharing_usage_limit_exceeded'},
-            },
-          })}',
+                'type': 'response.failed',
+                'response': {
+                  'error': {
+                    'code': 'subscription_sharing_usage_limit_exceeded'
+                  },
+                },
+              })}',
           200,
           headers: {
             'content-type': 'text/event-stream',
@@ -231,9 +233,7 @@ void main() {
             .verifyConnection(clientId: fake.issuedClient, model: 'test-model')
             .toList(),
         throwsA(
-          isA<ChatGptException>()
-              .having((e) => e.status, 'status', 403)
-              .having(
+          isA<ChatGptException>().having((e) => e.status, 'status', 403).having(
                 (e) => e.toString(),
                 'diagnostics',
                 isNot(contains('synthetic-access')),

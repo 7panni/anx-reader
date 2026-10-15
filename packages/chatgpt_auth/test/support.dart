@@ -22,11 +22,11 @@ final signingKey = JsonWebKey.fromJson({
   'kid': 'test-key',
 });
 Map<String, dynamic> get publicKey => {
-  for (final field in ['kty', 'n', 'e', 'kid'])
-    field: signingKey.toJson()[field],
-  'alg': 'RS256',
-  'use': 'sig',
-};
+      for (final field in ['kty', 'n', 'e', 'kid'])
+        field: signingKey.toJson()[field],
+      'alg': 'RS256',
+      'use': 'sig',
+    };
 
 class FakeOpenAi {
   final store = MemoryStore();
@@ -158,7 +158,7 @@ class FakeOpenAi {
 }
 
 http.Response jsonResponse(Object json, [int status = 200]) => http.Response(
-  jsonEncode(json),
-  status,
-  headers: {'content-type': 'application/json'},
-);
+      jsonEncode(json),
+      status,
+      headers: {'content-type': 'application/json'},
+    );

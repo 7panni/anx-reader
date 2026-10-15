@@ -15,7 +15,7 @@ class ChatGptModel {
 /// another billing path, or a private ChatGPT backend endpoint.
 class ChatGptResponses {
   ChatGptResponses(this.auth, {http.Client Function()? clientFactory})
-    : _clientFactory = clientFactory ?? http.Client.new;
+      : _clientFactory = clientFactory ?? http.Client.new;
   final ChatGptAuthClient auth;
   final http.Client Function() _clientFactory;
   final Set<http.Client> _requests = {};
@@ -74,11 +74,12 @@ class ChatGptResponses {
   Stream<String> verifyConnection({
     required String clientId,
     required String model,
-  }) => stream(
-    clientId: clientId,
-    model: model,
-    input: 'Say exactly: Hello, world!',
-  );
+  }) =>
+      stream(
+        clientId: clientId,
+        model: model,
+        input: 'Say exactly: Hello, world!',
+      );
 
   /// Yields accumulated output, and succeeds only on response.completed.
   Stream<String> stream({
@@ -124,11 +125,9 @@ class ChatGptResponses {
               'Accept': 'text/event-stream',
             })
             ..body = jsonEncode({...body, 'store': false, 'stream': true});
-      final response = await client
-          .send(request)
-          .timeout(const Duration(seconds: 30));
-      final requestId =
-          response.headers['openai-request-id'] ??
+      final response =
+          await client.send(request).timeout(const Duration(seconds: 30));
+      final requestId = response.headers['openai-request-id'] ??
           response.headers['x-request-id'];
       if (response.statusCode != 200) {
         final body = await http.Response.fromStream(

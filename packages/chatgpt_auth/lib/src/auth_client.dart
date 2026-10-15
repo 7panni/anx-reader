@@ -20,8 +20,8 @@ class ChatGptAuthClient {
     http.Client? httpClient,
     DateTime Function()? now,
     this.signInTimeout = const Duration(minutes: 3),
-  }) : _http = httpClient ?? http.Client(),
-       _now = now ?? DateTime.now {
+  })  : _http = httpClient ?? http.Client(),
+        _now = now ?? DateTime.now {
     _verifier = OpenAiIdentityVerifier(_http, now: _now);
   }
   final CredentialStore store;
@@ -38,8 +38,8 @@ class ChatGptAuthClient {
   int _signInGeneration = 0;
 
   List<ChatGptProfile> get profiles => List.unmodifiable(
-    _vault?.records.values.map((r) => r.profile) ?? <ChatGptProfile>[],
-  );
+        _vault?.records.values.map((r) => r.profile) ?? <ChatGptProfile>[],
+      );
   ChatGptProfile? get activeProfile =>
       _vault?.records[_vault?.activeClientId]?.profile;
 
@@ -217,185 +217,189 @@ class ChatGptAuthClient {
   }
 
   Future<void> selectProfile(String clientId) => _exclusive(() async {
-    await _load();
-    if (!_vault!.records.containsKey(clientId)) {
-      throw const ChatGptException(
-        'unknown_account',
-        'Select a saved ChatGPT account.',
-      );
-    }
-    await _commit(_vault!.copyWith(activeClientId: clientId));
-  });
+        await _load();
+        if (!_vault!.records.containsKey(clientId)) {
+          throw const ChatGptException(
+            'unknown_account',
+            'Select a saved ChatGPT account.',
+          );
+        }
+        await _commit(_vault!.copyWith(activeClientId: clientId));
+      });
 
   Future<void> markWelcomeSeen(String clientId) => _exclusive(() async {
-    await _load();
-    final record = _vault!.records[clientId];
-    if (record == null) return;
-    await _commit(
-      _vault!.copyWith(
-        records: {
-          ..._vault!.records,
-          clientId: record.copyWith(welcomeSeen: true),
-        },
-      ),
-    );
-  });
+        await _load();
+        final record = _vault!.records[clientId];
+        if (record == null) return;
+        await _commit(
+          _vault!.copyWith(
+            records: {
+              ..._vault!.records,
+              clientId: record.copyWith(welcomeSeen: true),
+            },
+          ),
+        );
+      });
 
   /// A request remains bound to the account it started with. Account switching
   /// must cancel callers' active streams before selecting the next profile.
   Future<String> accessToken(String clientId) => _exclusive(() async {
-    await _load();
-    var record = _vault!.records[clientId];
-    if (record == null || _vault!.activeClientId != clientId) {
-      throw const ChatGptException(
-        'account_changed',
-        'The active ChatGPT account changed.',
-      );
-    }
-    if (!record.profile.planEnabled) {
-      throw const ChatGptException(
-        'plan_not_authorized',
-        'Enable ChatGPT plan usage for this account.',
-      );
-    }
-    if (record.expiresAt != null &&
-        record.expiresAt!.isAfter(
-          _now().toUtc().add(const Duration(seconds: 60)),
-        )) {
-      return record.tokens['access_token'] as String;
-    }
-    final refreshToken = record.tokens['refresh_token'];
-    if (refreshToken is! String || refreshToken.isEmpty) {
-      throw const ChatGptException(
-        'sign_in_required',
-        'Sign in to ChatGPT again.',
-      );
-    }
-    try {
-      final configuration = await _configuration();
-      final response = await _token(configuration.tokenEndpoint, {
-        'grant_type': 'refresh_token',
-        'client_id': record.clientId,
-        'refresh_token': refreshToken,
-        'resource': openAiResource,
-      });
-      if (response['access_token'] is! String ||
-          (response['access_token'] as String).isEmpty) {
-        throw const ChatGptException(
-          'invalid_token_response',
-          'OpenAI returned no access token.',
-        );
-      }
-      final idToken = response['id_token'];
-      if (idToken != null) {
-        final identity = await _verifier.verify(
-          idToken as String,
-          clientId: record.clientId,
-          jwksUri: configuration.jwksUri,
-        );
-        if (identity.subject != record.subject) {
+        await _load();
+        var record = _vault!.records[clientId];
+        if (record == null || _vault!.activeClientId != clientId) {
           throw const ChatGptException(
-            'account_mismatch',
-            'The refreshed identity does not match the selected account.',
+            'account_changed',
+            'The active ChatGPT account changed.',
           );
         }
-      }
-      record = record.copyWith(
-        tokens: {...record.tokens, ..._validatedTokens(response)},
-        scopes: response.containsKey('scope')
-            ? _scopes(response['scope'])
-            : record.scopes,
-        expiresAt: _expiry(response),
-      );
-      // Rotating access/refresh/ID tokens and scopes are committed as one item.
-      await _commit(
-        _vault!.copyWith(records: {..._vault!.records, clientId: record}),
-      );
-      if (!record.profile.planEnabled) {
-        throw const ChatGptException(
-          'plan_not_authorized',
-          'ChatGPT plan permission is no longer enabled.',
-        );
-      }
-      return record.tokens['access_token'] as String;
-    } on ChatGptException catch (error) {
-      if (const {
-        'invalid_grant',
-        'invalid_refresh_token',
-        'token_expired',
-        'refresh_token_expired',
-        'refresh_token_invalidated',
-        'refresh_token_reused',
-      }.contains(error.code)) {
-        await _commit(
-          _vault!.copyWith(
-            records: {..._vault!.records, clientId: record!.withoutTokens()},
-          ),
-        );
-        throw const ChatGptException(
-          'sign_in_required',
-          'The session has ended. Sign in to ChatGPT again.',
-        );
-      }
-      rethrow;
-    }
-  });
+        if (!record.profile.planEnabled) {
+          throw const ChatGptException(
+            'plan_not_authorized',
+            'Enable ChatGPT plan usage for this account.',
+          );
+        }
+        if (record.expiresAt != null &&
+            record.expiresAt!.isAfter(
+              _now().toUtc().add(const Duration(seconds: 60)),
+            )) {
+          return record.tokens['access_token'] as String;
+        }
+        final refreshToken = record.tokens['refresh_token'];
+        if (refreshToken is! String || refreshToken.isEmpty) {
+          throw const ChatGptException(
+            'sign_in_required',
+            'Sign in to ChatGPT again.',
+          );
+        }
+        try {
+          final configuration = await _configuration();
+          final response = await _token(configuration.tokenEndpoint, {
+            'grant_type': 'refresh_token',
+            'client_id': record.clientId,
+            'refresh_token': refreshToken,
+            'resource': openAiResource,
+          });
+          if (response['access_token'] is! String ||
+              (response['access_token'] as String).isEmpty) {
+            throw const ChatGptException(
+              'invalid_token_response',
+              'OpenAI returned no access token.',
+            );
+          }
+          final idToken = response['id_token'];
+          if (idToken != null) {
+            final identity = await _verifier.verify(
+              idToken as String,
+              clientId: record.clientId,
+              jwksUri: configuration.jwksUri,
+            );
+            if (identity.subject != record.subject) {
+              throw const ChatGptException(
+                'account_mismatch',
+                'The refreshed identity does not match the selected account.',
+              );
+            }
+          }
+          record = record.copyWith(
+            tokens: {...record.tokens, ..._validatedTokens(response)},
+            scopes: response.containsKey('scope')
+                ? _scopes(response['scope'])
+                : record.scopes,
+            expiresAt: _expiry(response),
+          );
+          // Rotating access/refresh/ID tokens and scopes are committed as one item.
+          await _commit(
+            _vault!.copyWith(records: {..._vault!.records, clientId: record}),
+          );
+          if (!record.profile.planEnabled) {
+            throw const ChatGptException(
+              'plan_not_authorized',
+              'ChatGPT plan permission is no longer enabled.',
+            );
+          }
+          return record.tokens['access_token'] as String;
+        } on ChatGptException catch (error) {
+          if (const {
+            'invalid_grant',
+            'invalid_refresh_token',
+            'token_expired',
+            'refresh_token_expired',
+            'refresh_token_invalidated',
+            'refresh_token_reused',
+          }.contains(error.code)) {
+            await _commit(
+              _vault!.copyWith(
+                records: {
+                  ..._vault!.records,
+                  clientId: record!.withoutTokens()
+                },
+              ),
+            );
+            throw const ChatGptException(
+              'sign_in_required',
+              'The session has ended. Sign in to ChatGPT again.',
+            );
+          }
+          rethrow;
+        }
+      });
 
   /// Returns whether remote revocation was confirmed. Local credentials are
   /// cleared in either case, retaining the host and verified account mapping.
   Future<bool> signOut(String clientId) => _exclusive(() async {
-    await _load();
-    final record = _vault!.records[clientId];
-    if (record == null) return true;
-    var revoked = record.tokens['refresh_token'] == null;
-    try {
-      final refreshToken = record.tokens['refresh_token'];
-      if (refreshToken is String) {
-        final endpoint = (await _configuration()).revocationEndpoint;
-        if (endpoint != null) {
-          for (var attempt = 0; attempt < 2; attempt++) {
-            try {
-              final request = http.Request('POST', endpoint)
-                ..bodyFields = {
-                  'token': refreshToken,
-                  'token_type_hint': 'refresh_token',
-                  'client_id': record.clientId,
-                };
-              final response = await sendRequest(_http, request);
-              if (response.statusCode == 200) {
-                revoked = true;
-                break;
+        await _load();
+        final record = _vault!.records[clientId];
+        if (record == null) return true;
+        var revoked = record.tokens['refresh_token'] == null;
+        try {
+          final refreshToken = record.tokens['refresh_token'];
+          if (refreshToken is String) {
+            final endpoint = (await _configuration()).revocationEndpoint;
+            if (endpoint != null) {
+              for (var attempt = 0; attempt < 2; attempt++) {
+                try {
+                  final request = http.Request('POST', endpoint)
+                    ..bodyFields = {
+                      'token': refreshToken,
+                      'token_type_hint': 'refresh_token',
+                      'client_id': record.clientId,
+                    };
+                  final response = await sendRequest(_http, request);
+                  if (response.statusCode == 200) {
+                    revoked = true;
+                    break;
+                  }
+                  if (response.statusCode < 500) break;
+                } on ChatGptException {
+                  /* one bounded network retry */
+                }
+                if (attempt == 0)
+                  await Future<void>.delayed(const Duration(milliseconds: 300));
               }
-              if (response.statusCode < 500) break;
-            } on ChatGptException {
-              /* one bounded network retry */
             }
-            if (attempt == 0)
-              await Future<void>.delayed(const Duration(milliseconds: 300));
           }
+        } on ChatGptException {
+          /* local sign-out must still complete */
+        } finally {
+          await _commit(
+            _vault!.copyWith(
+              records: {..._vault!.records, clientId: record.withoutTokens()},
+            ),
+          );
         }
-      }
-    } on ChatGptException {
-      /* local sign-out must still complete */
-    } finally {
-      await _commit(
-        _vault!.copyWith(
-          records: {..._vault!.records, clientId: record.withoutTokens()},
-        ),
-      );
-    }
-    return revoked;
-  });
+        return revoked;
+      });
 
   Future<Map<String, dynamic>> _token(
     Uri endpoint,
     Map<String, String> fields,
-  ) async => readJson(
-    await sendRequest(
-      _http,
-      http.Request('POST', endpoint)..bodyFields = fields,
-    ),
-  );
+  ) async =>
+      readJson(
+        await sendRequest(
+          _http,
+          http.Request('POST', endpoint)..bodyFields = fields,
+        ),
+      );
 
   Map<String, dynamic> _validatedTokens(Map<String, dynamic> json) {
     final result = <String, dynamic>{};
@@ -485,23 +489,24 @@ class _Vault {
     Map<String, _Record>? records,
     Object? activeClientId = _unchanged,
     Object? pendingClientId = _unchanged,
-  }) => _Vault(
-    hostId: hostId,
-    records: records ?? this.records,
-    activeClientId: identical(activeClientId, _unchanged)
-        ? this.activeClientId
-        : activeClientId as String?,
-    pendingClientId: identical(pendingClientId, _unchanged)
-        ? this.pendingClientId
-        : pendingClientId as String?,
-  );
+  }) =>
+      _Vault(
+        hostId: hostId,
+        records: records ?? this.records,
+        activeClientId: identical(activeClientId, _unchanged)
+            ? this.activeClientId
+            : activeClientId as String?,
+        pendingClientId: identical(pendingClientId, _unchanged)
+            ? this.pendingClientId
+            : pendingClientId as String?,
+      );
   Map<String, dynamic> toJson() => {
-    'version': 1,
-    'host_id': hostId,
-    'active_client_id': activeClientId,
-    'pending_client_id': pendingClientId,
-    'accounts': records.values.map((r) => r.toJson()).toList(),
-  };
+        'version': 1,
+        'host_id': hostId,
+        'active_client_id': activeClientId,
+        'pending_client_id': pendingClientId,
+        'accounts': records.values.map((r) => r.toJson()).toList(),
+      };
 }
 
 class _Record {
@@ -524,42 +529,42 @@ class _Record {
   final DateTime? expiresAt;
   final bool welcomeSeen;
   ChatGptProfile get profile => ChatGptProfile(
-    clientId: clientId,
-    subject: subject,
-    issuer: openAiIssuer,
-    email: email,
-    name: name,
-    signedIn: tokens.isNotEmpty,
-    planEnabled:
-        scopes.contains(planScope) &&
-        scopes.contains('resource.invoke') &&
-        tokens['access_token'] is String,
-    welcomeSeen: welcomeSeen,
-  );
+        clientId: clientId,
+        subject: subject,
+        issuer: openAiIssuer,
+        email: email,
+        name: name,
+        signedIn: tokens.isNotEmpty,
+        planEnabled: scopes.contains(planScope) &&
+            scopes.contains('resource.invoke') &&
+            tokens['access_token'] is String,
+        welcomeSeen: welcomeSeen,
+      );
   _Record withoutTokens() => _Record(
-    clientId: clientId,
-    subject: subject,
-    email: email,
-    name: name,
-    tokens: {},
-    scopes: [],
-    welcomeSeen: welcomeSeen,
-  );
+        clientId: clientId,
+        subject: subject,
+        email: email,
+        name: name,
+        tokens: {},
+        scopes: [],
+        welcomeSeen: welcomeSeen,
+      );
   _Record copyWith({
     Map<String, dynamic>? tokens,
     List<String>? scopes,
     DateTime? expiresAt,
     bool? welcomeSeen,
-  }) => _Record(
-    clientId: clientId,
-    subject: subject,
-    email: email,
-    name: name,
-    tokens: tokens ?? this.tokens,
-    scopes: scopes ?? this.scopes,
-    expiresAt: expiresAt ?? this.expiresAt,
-    welcomeSeen: welcomeSeen ?? this.welcomeSeen,
-  );
+  }) =>
+      _Record(
+        clientId: clientId,
+        subject: subject,
+        email: email,
+        name: name,
+        tokens: tokens ?? this.tokens,
+        scopes: scopes ?? this.scopes,
+        expiresAt: expiresAt ?? this.expiresAt,
+        welcomeSeen: welcomeSeen ?? this.welcomeSeen,
+      );
   factory _Record.fromJson(Map<String, dynamic> json) {
     if (json['issuer'] != openAiIssuer ||
         json['client_id'] == dynamicClientId ||
@@ -581,14 +586,14 @@ class _Record {
     );
   }
   Map<String, dynamic> toJson() => {
-    'client_id': clientId,
-    'subject': subject,
-    'issuer': openAiIssuer,
-    'email': email,
-    'name': name,
-    'tokens': tokens,
-    'scopes': scopes,
-    'expires_at': expiresAt?.toUtc().toIso8601String(),
-    'welcome_seen': welcomeSeen,
-  };
+        'client_id': clientId,
+        'subject': subject,
+        'issuer': openAiIssuer,
+        'email': email,
+        'name': name,
+        'tokens': tokens,
+        'scopes': scopes,
+        'expires_at': expiresAt?.toUtc().toIso8601String(),
+        'welcome_seen': welcomeSeen,
+      };
 }

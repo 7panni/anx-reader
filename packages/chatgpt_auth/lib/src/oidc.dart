@@ -5,12 +5,12 @@ import 'types.dart';
 
 class OpenAiDiscovery {
   OpenAiDiscovery(Map<String, dynamic> json)
-    : authorizationEndpoint = _endpoint(json['authorization_endpoint']),
-      tokenEndpoint = _endpoint(json['token_endpoint']),
-      jwksUri = _endpoint(json['jwks_uri']),
-      revocationEndpoint = json['revocation_endpoint'] == null
-          ? null
-          : _endpoint(json['revocation_endpoint']) {
+      : authorizationEndpoint = _endpoint(json['authorization_endpoint']),
+        tokenEndpoint = _endpoint(json['token_endpoint']),
+        jwksUri = _endpoint(json['jwks_uri']),
+        revocationEndpoint = json['revocation_endpoint'] == null
+            ? null
+            : _endpoint(json['revocation_endpoint']) {
     if (json['issuer'] != openAiIssuer) {
       throw const ChatGptException(
         'invalid_issuer',
@@ -52,7 +52,7 @@ class VerifiedIdentity {
 /// A token's jku/x5u is never followed. Unknown kids trigger one JWKS refresh.
 class OpenAiIdentityVerifier {
   OpenAiIdentityVerifier(this.client, {DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+      : _now = now ?? DateTime.now;
   final http.Client client;
   final DateTime Function() _now;
   List<Map<String, dynamic>> _keys = [];

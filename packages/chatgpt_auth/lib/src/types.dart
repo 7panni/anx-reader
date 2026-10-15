@@ -106,8 +106,8 @@ ChatGptException responseError(int status, Object? body, String? requestId) {
   }
   final safeId =
       requestId != null && RegExp(r'^[a-zA-Z0-9_-]{1,200}$').hasMatch(requestId)
-      ? requestId
-      : null;
+          ? requestId
+          : null;
   return ChatGptException(
     code,
     'OpenAI could not complete the request.',
