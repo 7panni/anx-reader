@@ -129,6 +129,7 @@ class LoopbackCallback {
   }) {
     _server.listen(
       (request) async {
+        Uri? acceptedCallback;
         request.response.headers
           ..contentType = ContentType.html
           ..set('Cache-Control', 'no-store')
@@ -152,13 +153,22 @@ class LoopbackCallback {
               '<title>Anx Reader</title><p>Authorization received. '
               'Return to Anx Reader to see the sign-in result.</p>',
             );
-            if (!_result.isCompleted) _result.complete(request.uri);
+            acceptedCallback = request.uri;
           } on ChatGptException {
             request.response.statusCode = HttpStatus.badRequest;
             request.response.write('Invalid sign-in callback.');
           }
         }
-        await request.response.close();
+        try {
+          await request.response.close();
+        } catch (_) {
+          // A closed browser tab does not invalidate a verified OAuth callback.
+        } finally {
+          // Flush before the auth flow closes the server, including on Windows.
+          if (acceptedCallback != null && !_result.isCompleted) {
+            _result.complete(acceptedCallback);
+          }
+        }
       },
       onError: (Object _) {
         if (!_result.isCompleted)
