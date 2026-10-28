@@ -3,6 +3,7 @@ import 'package:anx_reader/providers/ai_history.dart';
 import 'package:anx_reader/providers/ai_providers.dart';
 import 'package:anx_reader/service/ai/ai_history.dart';
 import 'package:anx_reader/service/ai/index.dart';
+import 'package:anx_reader/service/rss/rss_document.dart';
 import 'package:anx_reader/utils/ai_reasoning_parser.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -37,13 +38,18 @@ class AiChat extends _$AiChat {
   Stream<List<ChatMessage>> sendMessageStream(
     String message,
     WidgetRef widgetRef,
-    bool isRegenerate,
-  ) async* {
+    bool isRegenerate, {
+    RssDocument? document,
+  }) async* {
     final sessionId = _ensureSessionId();
     final serviceId = Prefs().selectedAiService;
     final config = Prefs().getAiConfig(serviceId);
-    final model = widgetRef.read(aiProvidersProvider.notifier)
-        .getProviderById(serviceId)?.model ?? (config['model'])?.trim() ?? '';
+    final model = widgetRef
+            .read(aiProvidersProvider.notifier)
+            .getProviderById(serviceId)
+            ?.model ??
+        (config['model'])?.trim() ??
+        '';
     final historyNotifier = widgetRef.read(aiHistoryProvider.notifier);
     final initialHistoryState = widgetRef
         .read(aiHistoryProvider)
@@ -62,6 +68,7 @@ class AiChat extends _$AiChat {
       ChatMessage.humanText(message),
     ];
 
+    messages = RssDocument.attach(messages, document);
     state = AsyncData(messages);
 
     List<ChatMessage> updatedMessages = [
@@ -95,7 +102,7 @@ class AiChat extends _$AiChat {
       await for (final chunk in aiGenerateStream(
         messages,
         regenerate: isRegenerate,
-        useAgent: true,
+        useAgent: !RssDocument.isArticleChat(messages),
         ref: widgetRef,
       )) {
         assistantResponse = chunk;
@@ -113,8 +120,11 @@ class AiChat extends _$AiChat {
         messages: List<ChatMessage>.from(state.value ?? updatedMessages),
         updatedAt: DateTime.now().millisecondsSinceEpoch,
         completed: true,
-        model: widgetRef.read(aiProvidersProvider.notifier)
-            .getProviderById(serviceId)?.model ?? model,
+        model: widgetRef
+                .read(aiProvidersProvider.notifier)
+                .getProviderById(serviceId)
+                ?.model ??
+            model,
       );
       await historyNotifier.upsert(completedEntry);
     } catch (_) {

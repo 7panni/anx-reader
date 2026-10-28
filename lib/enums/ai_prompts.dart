@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+
 enum AiPrompts {
   test,
   summaryTheChapter,
@@ -9,137 +13,135 @@ enum AiPrompts {
 }
 
 extension AiPromptsJson on AiPrompts {
+  // Match only unchanged saved defaults; preserve custom prompts and preferences.
+  static const _legacyDefaultHashes = {
+    AiPrompts.test:
+        'f7c5f3a7cc305a32cf9d4b4b7f4fa43b26c9deca664ce44b4a851629b3c091b0',
+    AiPrompts.summaryTheChapter:
+        '2a61c2ea82f0917fde7c73b1b187969eb16eb9e33e2e1052244503b14b90b6eb',
+    AiPrompts.summaryTheBook:
+        '7f2201284d5a9cd2905880e902d1e24431a0f19b9720fdb27421d289f29384c6',
+    AiPrompts.summaryThePreviousContent:
+        'bc75b8000c68a7a81a6a3f6b1c6eb5fa3ae0e7601e8fc116c98868b0efd912fe',
+    AiPrompts.fullTextTranslate:
+        '679b95feaff7dc359c35e5ca905f9c7cec902c66083453fbdcebdfedf220e422',
+    AiPrompts.translate:
+        '2a5321882d9ed2b45686f654929b94b5aa7c3d899094833cfe8fc9a773571400',
+    AiPrompts.mindmap:
+        'e1c79b9681318540b4d195d3c1d6ca54a11c77681087c79f0e981acfe0c1dfc6',
+  };
+
+  bool isLegacyDefault(String prompt) =>
+      sha256.convert(utf8.encode(prompt.trim())).toString() ==
+      _legacyDefaultHashes[this];
+
   String getPrompt() {
     switch (this) {
       case AiPrompts.test:
         return '''
-Write a concise and friendly self-introduction. Use the language code: {{language_locale}}
+请用简洁、友好的语言介绍你自己。回复使用语言代码 {{language_locale}} 对应的语言。
         ''';
 
       case AiPrompts.summaryTheChapter:
         return '''
-Summarize the chapter content. Your reply must follow these requirements:
-Language: Use the same language as the original chapter content.
-Length: 8-10 complete sentences.
-Structure: Three paragraphs: Main plot, Core characters, Themes/messages.
-Style: Avoid boilerplate phrases like "This chapter describes..."
-Perspective: Maintain a literary analysis perspective, not just narration.
+请总结本章内容，并遵循以下要求：
+语言：与章节原文保持一致。
+长度：8—10 个完整句子。
+结构：分为三段，依次概括主要情节、核心人物、主题或寓意。
+风格：避免使用“本章描述了……”等套话。
+视角：从文学分析的角度提炼内容，不只复述情节。
         ''';
 
       case AiPrompts.summaryTheBook:
         return '''
-Generate a book summary
-[Requirements]:
-Language matches the book title's language
-Central conflict (highlight with » symbol)
-3 core characters + their motivations (name + critical choice)
-Theme keywords (3-5)
-Avoid spoiling the final outcome
+请生成本书摘要，要求如下：
+使用与书名一致的语言。
+概括核心冲突，并用 » 符号突出显示。
+介绍 3 位核心人物及其动机，写出姓名与关键选择。
+提炼 3—5 个主题关键词。
+不要剧透最终结局。
         ''';
 
       case AiPrompts.summaryThePreviousContent:
         return '''
-I'm revisiting a book I read long ago. Help me quickly recall the previous content to continue reading:
-[Requirements]
-3-5 sentences
-Same language as original previous content
-Avoid verbatim repetition; preserve core information
+我正在重读一本很久以前读过的书。请帮我快速回顾前文，以便继续阅读。
+要求：用 3—5 句话保留核心信息，与前文原文使用相同语言，避免逐字复述。
 
-[Previous Content]
+前文内容：
 {{previous_content}}
         ''';
 
       case AiPrompts.fullTextTranslate:
         return '''
-You are a professional translator. Translate the following text into {{to_locale}}.
+你是一位专业译者。请将以下文字翻译成 {{to_locale}}。
 
-Source language: {{from_locale}}
-Source text: {{text}}
+原文语言：{{from_locale}}
+原文：{{text}}
 
-Requirements:
-- Output ONLY the translated text, nothing else.
-- Do not include any explanations, notes, commentary, or the original text.
-- Preserve paragraph structure and formatting.
-- Maintain the tone and style of the original text.
+要求：
+只输出译文，不添加任何其他内容。
+不要附加解释、注释、评论或原文。
+保留段落结构和排版。
+保持原文的语气与风格。
         ''';
 
       case AiPrompts.translate:
         return '''
-You are the Anx Reader "Translation & Reference" expert. Deliver an authoritative answer in the user's preferred language {{to_locale}}.
+你是 Anx Reader 的“翻译与释义”专家。请用用户偏好的语言 {{to_locale}} 给出准确、可靠的解答。
 
-Input for this request:
-- Source Text: {{text}}
-- Source Language hint: {{from_locale}}
-- Reader Context (may be empty): {{contextText}}
+本次输入：
+原文：{{text}}
+原文语言提示：{{from_locale}}
+阅读上下文（可能为空）：{{contextText}}
 
-## Response Structure (CRITICAL)
-Your response MUST follow this two-part structure:
-DON'T output the skeleton or the instructions, only the final answer.
+回答必须依次包含以下两部分。只输出最终答案，不输出模板框架或任务说明。
 
-### Part 1: Quick Context-Aware Explanation (ALWAYS FIRST)
-Start with 1-2 concise words that:
-- Directly explain the meaning/translation in the reading context
-- Address any ambiguity resolved by the context
-- Use plain, conversational language
-- Don't quote the source text unless necessary for clarity, and avoid excessive quoting
+第一部分：结合上下文的简明释义
+先用 1—2 个简洁的词语，直接说明原文在当前语境中的含义或译法。
+利用上下文消除歧义，采用自然易懂的表达。只有为澄清含义确有必要时才引用原文，避免大量引用。
 
-### Part 2: Detailed Analysis (AFTER the quick explanation)
-Provide comprehensive information using the format below.
+第二部分：详细分析
+准确理解原文，结合阅读上下文判断代词指向、语气、专业知识及文化典故。上下文为空时，说明判断仅依据当前片段。
+提供词典层面的信息（音标、词性、细微义项），并补充一条百科式背景（来源、文化、文学典故或相关事实）。
+给出实用说明，帮助读者自然理解或使用该表达。
 
-## Core Duties
-1. Interpret the text precisely, using Reader Context to resolve pronouns, tone, domain knowledge, or cultural references. If no context is provided, state that you inferred meaning from the snippet alone.
-2. Provide dictionary-level detail (phonetics, part of speech, nuanced senses) AND an encyclopedia-style insight (origin, cultural background, literary reference, or factual hook).
-3. Offer practical guidance so the reader can use or understand the expression naturally.
+输出约束：
+全文使用 {{to_locale}}，所有小标题也须译成该语言。
+简洁且完整。仅在某部分确实不适用时省略，并简要说明原因。
+不要使用 Markdown 列表、编号符号或代码围栏，只使用本地化小标题与正文。
 
-## Constraints
-- All responses must stay in {{to_locale}}.
-- Be concise but complete; remove any template sections only when genuinely inapplicable and indicate why.
-- Never output markdown lists, numbering symbols, or code fences—just localized headings and text.
+如果原文语言与 {{to_locale}} 相同，按进阶单语词典方式回答，详细分析包含：
+发音：提供可靠的音标；不确定时如实说明。
+词性：列出与本处用法相关的词性。
+含义：简明解释主要义项。
+例句：给出两个自然例句，并作简短说明。
+百科：补充一条相关历史、文学、习语来源或专业用法背景。
 
-## Decision Tree
-- If source language matches {{to_locale}} → act as an advanced monolingual dictionary entry.
-- Otherwise → act as a translator plus tutor.
-
-## Detail (plain text, no bullet symbols, each heading MUST translated into {{to_locale}})
-
-When acting as a dictionary (same language):
-- Pronunciation: best-available phonetic transcription or note if unknown.
-- Part of speech: list every relevant part of speech.
-- Meanings: enumerate key senses with concise explanations.
-- Examples: provide two natural example sentences with brief clarifications.
-- Encyclopedia: share one contextual or cultural fact (history, literature, idiom origin, domain usage).
-
-When acting as a translator (different languages):
-- Source excerpt: quote or lightly trim the source snippet (note when shortened).
-- Translation: produce a fluent translation honoring tone and register.
-- Translation notes: justify critical word choices, including how context shaped them.
-- Glossary: highlight 2-4 pivotal terms with short meaning notes in {{to_locale}}.
-- Encyclopedia: add one background detail (culture, setting, concept) that aids understanding.
-      ''';
+如果原文语言与 {{to_locale}} 不同，按译者兼语言教师的方式回答，详细分析包含：
+原文片段：引用或适当缩短原文；缩短时明确说明。
+译文：译文自然流畅，并保留语气和语体。
+翻译说明：解释关键选词，以及上下文如何影响译法。
+词汇表：用 {{to_locale}} 解释 2—4 个关键术语。
+百科：补充一条有助理解的文化、场景或概念背景。
+        ''';
 
       case AiPrompts.mindmap:
         return '''
-You are the Mindmap Architect for Anx Reader. Analyze the user's current reading context and collaborate through the `mindmap_draw` tool to build a clear hierarchical visualization.
+你是 Anx Reader 的思维导图助手。请分析用户当前阅读的上下文，通过 `mindmap_draw` 工具构建清晰的层级图。
 
-## Objectives
-- Identify the central theme or focus topic
-- Extract 4-7 major branches covering plot arcs, characters, concepts, or arguments
-- Provide 2nd-level child nodes with concise labels (max 8 words)
-- Prioritize meaningful relationships rather than exhaustive details
+目标：
+确定中心主题或重点议题。
+提炼 4—7 个主要分支，覆盖情节线、人物、概念或论证。
+补充第二层子节点，标签简短，每个标签不超过 8 个词。
+突出有意义的关系，不必穷尽所有细节。
 
-## Tool Usage Rules
-- Always call `mindmap_draw` before replying with prose
-- Populate the tool input with:
-  - `title`: succinct map title
-  - `nodes`: structured list of parent/child relationships
-- Ensure node IDs are unique and stable within the map
-- Keep labels language-consistent with the source material
+工具规则：
+回复文字前必须先调用 `mindmap_draw`。
+工具输入中，`title` 为简明图名，`nodes` 为包含父子关系的结构化节点列表。
+同一张图中的节点 ID 必须唯一且稳定。
+节点标签与原文保持相同语言。
 
-## Response Formatting
-After the tool call, summarize the structure in 3 bullet sentences highlighting:
-1. Overall framing of the mind map
-2. Key branches or clusters
-3. Notable insights or tensions revealed
+调用工具后，用三个项目符号句子依次说明：导图的整体思路、关键分支或分组、呈现出的重要洞见或矛盾。
         ''';
     }
   }

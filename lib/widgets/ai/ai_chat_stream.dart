@@ -30,6 +30,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'package:langchain_core/chat_models.dart';
 
 import 'package:anx_reader/models/ai_quick_prompt_chip.dart';
+import 'package:anx_reader/service/rss/rss_document.dart';
 
 class AiChatStream extends ConsumerStatefulWidget {
   const AiChatStream({
@@ -38,8 +39,10 @@ class AiChatStream extends ConsumerStatefulWidget {
     this.sendImmediate = false,
     this.quickPromptChips = const [],
     this.trailing,
+    this.document,
   });
 
+  final RssDocument? document;
   final String? initialMessage;
   final bool sendImmediate;
   final List<AiQuickPromptChip> quickPromptChips;
@@ -114,6 +117,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
 
   @override
   void dispose() {
+    if (_isStreaming) cancelActiveAiRequest();
     inputController.dispose();
     _messageSubscription?.cancel();
     _messageController?.close();
@@ -379,6 +383,7 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
           message,
           ref,
           isRegenerate,
+          document: widget.document,
         );
 
     setState(() {
@@ -781,12 +786,16 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
       key: _scaffoldKey,
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: Text(L10n.of(context).aiChat),
-        leading: IconButton(
-          icon: const Icon(Icons.insert_drive_file),
-          tooltip: L10n.of(context).history,
-          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-        ),
+        title: Text(widget.document?.article.title ?? L10n.of(context).aiChat,
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+        automaticallyImplyLeading: false,
+        leading: widget.document == null
+            ? IconButton(
+                icon: const Icon(Icons.insert_drive_file),
+                tooltip: L10n.of(context).history,
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              )
+            : null,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_document),
@@ -801,9 +810,11 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
           if (widget.trailing != null) ...widget.trailing!,
         ],
       ),
-      drawer: Drawer(
-        child: _buildHistoryDrawer(context),
-      ),
+      drawer: widget.document == null
+          ? Drawer(
+              child: _buildHistoryDrawer(context),
+            )
+          : null,
       body: EnvVar.isAppStore &&
               Prefs().shouldShowHint(HintKey.aiDataSharingConsent)
           ? _buildDataSharingConsent(context)
@@ -819,7 +830,10 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(24),
                                   child: SelectableText('${snapshot.error}',
-                                    style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                                      style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .error)),
                                 ),
                               );
                             }
@@ -910,6 +924,8 @@ class AiChatStreamState extends ConsumerState<AiChatStream> {
   }
 
   Widget _buildMessageList(List<ChatMessage> messages) {
+    messages =
+        messages.where((message) => message is! SystemChatMessage).toList();
     return ListView.builder(
       controller: _scrollController,
       itemCount: messages.length,

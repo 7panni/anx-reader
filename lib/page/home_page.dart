@@ -5,6 +5,7 @@ import 'package:anx_reader/enums/sync_direction.dart';
 import 'package:anx_reader/enums/sync_trigger.dart';
 import 'package:anx_reader/l10n/generated/L10n.dart';
 import 'package:anx_reader/page/home_page/ai_page.dart';
+import 'package:anx_reader/page/rss/rss_page.dart';
 import 'package:anx_reader/service/initialization_check.dart';
 import 'package:anx_reader/page/home_page/bookshelf_page.dart';
 import 'package:anx_reader/page/home_page/notes_page.dart';
@@ -136,6 +137,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         'label': L10n.of(context).navBarBookshelf,
         'identifier': 'bookshelf'
       },
+      {'icon': Icons.rss_feed, 'label': 'RSS', 'identifier': 'rss'},
       if (Prefs().bottomNavigatorShowStatistics)
         {
           'icon': Icons.show_chart,
@@ -175,6 +177,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     ) {
       final page = [
         BookshelfPage(controller: controller),
+        RssPage(controller: controller),
         if (Prefs().bottomNavigatorShowStatistics)
           StatisticPage(controller: controller),
         if (Prefs().bottomNavigatorShowAI && EnvVar.enableAIFeature)

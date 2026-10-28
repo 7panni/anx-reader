@@ -886,7 +886,7 @@ class Prefs extends ChangeNotifier {
 
   String getAiPrompt(AiPrompts identifier) {
     String? aiPrompt = prefs.getString('aiPrompt_${identifier.name}');
-    if (aiPrompt == null) {
+    if (aiPrompt == null || identifier.isLegacyDefault(aiPrompt)) {
       return identifier.getPrompt();
     }
     return aiPrompt;
